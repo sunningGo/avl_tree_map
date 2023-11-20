@@ -62,6 +62,9 @@ pub struct AvlTreeMap<K, V> {
     root: NodePtr<K, V>,
 }
 
+// Implement Clone without using the associated derive macro in order to
+// override the default implementation of clone_from with an implementation that
+// incurs fewer heap allocations/deallocations
 impl<K: Clone, V: Clone> Clone for AvlTreeMap<K, V> {
     fn clone(&self) -> Self {
         Self {
