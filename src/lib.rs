@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 use std::{
+    borrow::Borrow,
     cmp::{self, Ordering},
     mem,
     ops::{Bound, RangeBounds as _},
@@ -196,11 +197,15 @@ impl<K: Ord, V> AvlTreeMap<K, V> {
         Self::subtree_size(&self.root)
     }
 
-    fn get_node(&self, key: &K) -> Option<&Node<K, V>> {
+    fn get_node<Q>(&self, key: &Q) -> Option<&Node<K, V>>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
         let mut cur_node_ptr = &self.root;
         loop {
             let cur_node = cur_node_ptr.as_deref()?;
-            match key.cmp(&cur_node.key) {
+            match key.cmp(&cur_node.key.borrow()) {
                 Ordering::Less => cur_node_ptr = &cur_node.left_child,
                 Ordering::Equal => return Some(cur_node),
                 Ordering::Greater => cur_node_ptr = &cur_node.right_child,
@@ -208,11 +213,19 @@ impl<K: Ord, V> AvlTreeMap<K, V> {
         }
     }
 
-    pub fn contains_key(&self, key: &K) -> bool {
+    pub fn contains_key<Q>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
         self.get_node(key).is_some()
     }
 
-    pub fn get(&self, key: &K) -> Option<&V> {
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
         self.get_node(key).map({ |node| &node.value })
     }
 
