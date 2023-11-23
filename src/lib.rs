@@ -205,7 +205,7 @@ impl<K: Ord, V> AvlTreeMap<K, V> {
         let mut cur_node_ptr = &self.root;
         loop {
             let cur_node = cur_node_ptr.as_deref()?;
-            match key.cmp(&cur_node.key.borrow()) {
+            match key.cmp(cur_node.key.borrow()) {
                 Ordering::Less => cur_node_ptr = &cur_node.left_child,
                 Ordering::Equal => return Some(cur_node),
                 Ordering::Greater => cur_node_ptr = &cur_node.right_child,
@@ -247,12 +247,15 @@ impl<K: Ord, V> AvlTreeMap<K, V> {
         Some((&max_node.key, &max_node.value))
     }
 
-    pub fn floor(&self, key: &K) -> Option<(&K, &V)> {
+    pub fn floor<Q>(&self, key: &Q) -> Option<(&K, &V)>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
         let mut cur_node_ptr = &self.root;
         let mut candidate: Option<&Node<K, V>> = None;
-        while let Some(b) = cur_node_ptr {
-            let cur_node = &**b;
-            match key.cmp(&cur_node.key) {
+        while let Some(cur_node) = cur_node_ptr.as_deref() {
+            match key.cmp(cur_node.key.borrow()) {
                 Ordering::Less => cur_node_ptr = &cur_node.left_child,
                 Ordering::Equal => return Some((&cur_node.key, &cur_node.value)),
                 Ordering::Greater => {
@@ -264,12 +267,15 @@ impl<K: Ord, V> AvlTreeMap<K, V> {
         candidate.map(|node| (&node.key, &node.value))
     }
 
-    pub fn ceiling(&self, key: &K) -> Option<(&K, &V)> {
+    pub fn ceiling<Q>(&self, key: &Q) -> Option<(&K, &V)>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
         let mut cur_node_ptr = &self.root;
         let mut candidate: Option<&Node<K, V>> = None;
-        while let Some(b) = cur_node_ptr {
-            let cur_node = &**b;
-            match key.cmp(&cur_node.key) {
+        while let Some(cur_node) = cur_node_ptr.as_deref() {
+            match key.cmp(cur_node.key.borrow()) {
                 Ordering::Less => {
                     candidate = Some(cur_node);
                     cur_node_ptr = &cur_node.left_child
@@ -284,7 +290,7 @@ impl<K: Ord, V> AvlTreeMap<K, V> {
     pub fn select(&self, mut rank: usize) -> Option<(&K, &V)> {
         let mut cur_node_ptr = &self.root;
         loop {
-            let cur_node = &**(cur_node_ptr.as_ref()?);
+            let cur_node = cur_node_ptr.as_deref()?;
             let left_subtree_size = Self::subtree_size(&cur_node.left_child);
             match rank.cmp(&left_subtree_size) {
                 Ordering::Less => cur_node_ptr = &cur_node.left_child,
@@ -297,28 +303,31 @@ impl<K: Ord, V> AvlTreeMap<K, V> {
         }
     }
 
-    pub fn rank(&self, key: &K) -> usize {
+    pub fn rank<Q>(&self, key: &Q) -> usize
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
         let mut cur_node_ptr = &self.root;
-        let mut num_of_smaller_keys_so_far: usize = 0;
-        while let Some(b) = cur_node_ptr {
-            let node = &(**b);
-            match key.cmp(&node.key) {
-                Ordering::Less => cur_node_ptr = &node.left_child,
+        let mut num_of_smaller_keys: usize = 0;
+        while let Some(cur_node) = cur_node_ptr.as_deref() {
+            match key.cmp(cur_node.key.borrow()) {
+                Ordering::Less => cur_node_ptr = &cur_node.left_child,
                 Ordering::Equal => {
-                    return num_of_smaller_keys_so_far + Self::subtree_size(&node.left_child)
+                    return num_of_smaller_keys + Self::subtree_size(&cur_node.left_child)
                 }
                 Ordering::Greater => {
-                    num_of_smaller_keys_so_far += Self::subtree_size(&node.left_child) + 1;
-                    cur_node_ptr = &node.right_child;
+                    num_of_smaller_keys += Self::subtree_size(&cur_node.left_child) + 1;
+                    cur_node_ptr = &cur_node.right_child;
                 }
             }
         }
-        num_of_smaller_keys_so_far
+        num_of_smaller_keys
     }
 
     unsafe fn node_of(node_ptr: &mut NodePtr<K, V>) -> &mut Node<K, V> {
         debug_assert!(node_ptr.is_some());
-        unsafe { &mut **node_ptr.as_mut().unwrap_unchecked() }
+        unsafe { node_ptr.as_deref_mut().unwrap_unchecked() }
     }
 
     unsafe fn left_child_of(node: &mut Node<K, V>) -> &mut Node<K, V> {
@@ -469,11 +478,15 @@ impl<K: Ord, V> AvlTreeMap<K, V> {
         }
     }
 
-    fn remove_node(root_ptr: &mut NodePtr<K, V>, key: &K) -> NodePtr<K, V> {
+    fn remove_node<Q>(root_ptr: &mut NodePtr<K, V>, key: &Q) -> NodePtr<K, V>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
         let Some(root) = root_ptr.as_deref_mut() else {
             return None;
         };
-        match key.cmp(&root.key) {
+        match key.cmp(root.key.borrow()) {
             Ordering::Equal => {
                 if root.left_child.is_none() {
                     let right_subtree = mem::take(&mut root.right_child);
@@ -516,7 +529,11 @@ impl<K: Ord, V> AvlTreeMap<K, V> {
         }
     }
 
-    pub fn remove(&mut self, key: &K) -> Option<V> {
+    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
         let removed_value = Self::remove_node(&mut self.root, key).map(|b| b.value);
         debug_assert!(self.invariants_met());
         removed_value
