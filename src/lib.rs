@@ -4,7 +4,7 @@ use std::{
     borrow::Borrow,
     cmp::{self, Ordering},
     mem,
-    ops::{Bound, RangeBounds as _},
+    ops::{Bound, Index, RangeBounds as _},
 };
 
 #[cfg(test)]
@@ -579,5 +579,17 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
 impl<K: Ord, V> Default for AvlTreeMap<K, V> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<K, Q, V> Index<&Q> for AvlTreeMap<K, V>
+where
+    K: Ord + Borrow<Q>,
+    Q: Ord + ?Sized,
+{
+    type Output = V;
+
+    fn index(&self, index: &Q) -> &Self::Output {
+        self.get(index).expect("no entry found for key")
     }
 }
